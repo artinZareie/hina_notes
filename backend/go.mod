@@ -43,6 +43,7 @@ require (
 	github.com/openai/openai-go/v3 v3.98.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/pressly/goose/v3 v3.30.0 // indirect
+	github.com/qdrant/go-client v1.20.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.60.0 // indirect
 	github.com/redis/go-redis/v9 v9.23.0 // indirect
