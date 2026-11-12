@@ -48,11 +48,21 @@ type RedisConfig struct {
 	DB       int
 }
 
+type MailConfig struct {
+	Host       string
+	Port       int
+	Username   string
+	Password   string
+	From       string
+	Encryption string // "tls", "ssl", or "none"
+}
+
 type Config struct {
 	Mode         LaunchMode
 	ServerArgs   ServerConfig
 	DatabaseArgs DatabaseConnectionConfig
 	RedisArgs    RedisConfig
+	MailArgs     MailConfig
 }
 
 func GetEnv(key, fallback string) string {
@@ -91,6 +101,14 @@ func LoadConfig() (Config, error) {
 			Password: GetEnv("redis_password", ""),
 			Secret:   os.Getenv("session_secret"),
 			DB:       0,
+		},
+		MailArgs: MailConfig{
+			Host:       GetEnv("mail_host", "localhost"),
+			Port:       1025, // TODO: Mailpit default; override for production
+			Username:   GetEnv("mail_username", ""),
+			Password:   GetEnv("mail_password", ""),
+			From:       GetEnv("mail_from", "noreply@hina.local"),
+			Encryption: GetEnv("mail_encryption", "none"),
 		},
 	}
 

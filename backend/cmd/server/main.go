@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"
+	"github.com/utrack/gin-csrf"
 )
 
 func main() {
@@ -39,12 +40,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
-
 	defer func() {
 		if sqlDB, err := db.DB(); err == nil {
 			_ = sqlDB.Close()
 		}
 	}()
+
+	err = database.AutoMigrate(db)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 
 	if cfg.Mode == config.ProductionLaunchMode {
 		gin.SetMode(gin.ReleaseMode)
@@ -85,6 +90,13 @@ func main() {
 	})
 
 	r.Use(sessions.Sessions("hina_session", store))
+
+	r.Use(csrf.Middleware(csrf.Options{
+		Secret: cfg.RedisArgs.Secret,
+		ErrorFunc: func(c *gin.Context) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "csrf token mismatch"})
+		},
+	}))
 
 	router.New(&cfg, r)
 
