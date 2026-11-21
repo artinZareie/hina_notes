@@ -1,0 +1,19 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "hina_notes API",
+    "description": "Hina Notes backend API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/users": {
+      "get": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    }
+  }
+}

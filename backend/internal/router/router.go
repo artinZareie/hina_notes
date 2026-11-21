@@ -1,17 +1,33 @@
 package router
 
 import (
+	"log"
+	"os"
+	"path/filepath"
+
 	"github.com/artinZareie/hina_notes/backend/internal/config"
 	"github.com/artinZareie/hina_notes/backend/internal/controllers"
 	"github.com/artinZareie/hina_notes/backend/internal/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/oaswrap/ginopenapi"
+	"github.com/oaswrap/spec/option"
+	"github.com/watchakorn-18k/scalar-go"
+	scalargin "github.com/watchakorn-18k/scalar-go/middleware/gin"
 )
 
 func New(cfg *config.Config, r *gin.Engine) *gin.Engine {
-	api := r.Group("/api")
+	router := ginopenapi.NewRouter(
+		r,
+		option.WithTitle("hina_notes API"),
+		option.WithVersion("1.0.0"),
+		option.WithDescription("Hina Notes backend API"),
+		option.WithOpenAPIVersion("3.0.3"),
+	)
+
+	api := router.Group("/api")
 	{
-		v1 := api.Group("v1")
+		v1 := api.Group("/v1")
 
 		{
 			userSvc := services.NewUserService()
@@ -21,5 +37,23 @@ func New(cfg *config.Config, r *gin.Engine) *gin.Engine {
 		}
 	}
 
+	if err := os.MkdirAll("docs", 0o755); err != nil {
+		log.Printf("failed to create docs dir: %v", err)
+	} else if err := router.WriteSchemaTo(filepath.Join("docs", "openapi.json")); err != nil {
+		log.Printf("failed to write openapi.json: %v", err)
+	}
+
+	RegisterDocsRoutes(r)
+
 	return r
+}
+
+func RegisterDocsRoutes(r *gin.Engine) {
+	r.GET("/scalar", scalargin.Handler(&scalar.Options{
+		SpecURL:      "/docs/openapi.yaml",
+		ValidateSpec: true,
+		CustomOptions: scalar.CustomOptions{
+			PageTitle: "API Reference",
+		},
+	}))
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/oaswrap/ginopenapi"
 )
 
 type UserService interface {
@@ -19,7 +20,7 @@ func NewUserController(svc UserService) *UserController {
 	return &UserController{svc: svc}
 }
 
-func (h *UserController) RegisterRoutes(rg *gin.RouterGroup) {
+func (h *UserController) RegisterRoutes(rg ginopenapi.Router) {
 	users := rg.Group("/users")
 
 	users.GET("", h.SayHello)
