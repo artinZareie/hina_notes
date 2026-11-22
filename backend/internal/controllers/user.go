@@ -33,7 +33,7 @@ type UserController struct {
 }
 
 func NewUserController(svc *services.UserService, mailer *mail.Mailer, cfg *config.Config) *UserController {
-	verifyBaseURL := fmt.Sprintf("http://localhost:%s/api/v1/users/verify_email", cfg.ServerArgs.Port)
+	verifyBaseURL := fmt.Sprintf("http://localhost:%s/api/v1/users/verify_email", cfg.ServerArgs.Port) // TODO: Fix the URL.
 
 	return &UserController{
 		svc:           svc,
