@@ -1,0 +1,23 @@
+$kind: http-request
+name: '1 - Get CSRF Token'
+order: 1000
+method: GET
+url: '{{base_url}}/api/v1/csrf-token'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status is 200', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Response has csrf_token field', () => {
+        const data = pm.response.json();
+        pm.expect(data.csrf_token).to.be.a('string').and.not.empty;
+      });
+
+      pm.test('CSRF token saved to collection variable', () => {
+        const data = pm.response.json();
+        pm.collectionVariables.set('csrf_token', data.csrf_token);
+        pm.expect(pm.collectionVariables.get('csrf_token')).to.equal(data.csrf_token);
+      });

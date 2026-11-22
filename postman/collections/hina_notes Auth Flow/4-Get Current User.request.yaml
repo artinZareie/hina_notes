@@ -1,0 +1,36 @@
+$kind: http-request
+name: '4 - Get Current User'
+order: 4000
+method: GET
+url: '{{base_url}}/api/v1/users/auth/me'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status is 200 OK', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Response body is valid JSON', () => {
+        pm.response.to.be.json;
+      });
+
+      pm.test('Returned user matches registered email', () => {
+        const data = pm.response.json();
+        pm.expect(data.user).to.be.an('object');
+        pm.expect(data.user.email).to.equal(pm.collectionVariables.get('test_email'));
+      });
+
+      pm.test('User is authenticated (no 401/403)', () => {
+        pm.expect(pm.response.status).to.not.be.oneOf([401, 403]);
+      });
+
+      // Refresh CSRF token so logout (step 5) has a valid one.
+      pm.sendRequest({
+        url: pm.collectionVariables.get('base_url') + '/api/v1/csrf-token',
+        method: 'GET'
+      }, (err, res) => {
+        if (!err && res.code === 200) {
+          pm.collectionVariables.set('csrf_token', res.json().csrf_token);
+        }
+      });

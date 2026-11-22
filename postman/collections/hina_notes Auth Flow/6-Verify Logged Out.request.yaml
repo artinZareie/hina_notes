@@ -1,0 +1,12 @@
+$kind: http-request
+name: '6 - Verify Logged Out'
+order: 6000
+method: GET
+url: '{{base_url}}/api/v1/users/auth/me'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('User is no longer authenticated after logout (401)', () => {
+        pm.response.to.have.status(401);
+      });

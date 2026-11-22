@@ -1,0 +1,51 @@
+$kind: http-request
+name: '2 - Register User'
+order: 2000
+method: POST
+url: '{{base_url}}/api/v1/users/auth/register'
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: X-CSRF-Token
+    value: '{{csrf_token}}'
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{test_email}}",
+      "name": "{{test_name}}",
+      "password": "{{test_password}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status is 201 Created', () => {
+        pm.response.to.have.status(201);
+      });
+
+      pm.test('Response body is valid JSON', () => {
+        pm.response.to.be.json;
+      });
+
+      pm.test('Response contains user data', () => {
+        const data = pm.response.json();
+        pm.expect(data.user).to.be.an('object');
+        pm.expect(data.user.email).to.equal(pm.collectionVariables.get('test_email'));
+        pm.expect(data.user.name).to.be.a('string').and.not.empty;
+      });
+
+      pm.test('Response time is acceptable', () => {
+        pm.expect(pm.response.responseTime).to.be.below(2000);
+      });
+
+      // Fetch a fresh CSRF token now — the server rotates it after register,
+      // so the next request (login) needs an up-to-date token.
+      pm.sendRequest({
+        url: pm.collectionVariables.get('base_url') + '/api/v1/csrf-token',
+        method: 'GET'
+      }, (err, res) => {
+        if (!err && res.code === 200) {
+          pm.collectionVariables.set('csrf_token', res.json().csrf_token);
+        }
+      });
