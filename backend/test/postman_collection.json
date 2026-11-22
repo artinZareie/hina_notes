@@ -1,0 +1,147 @@
+{
+  "info": {
+    "name": "hina_notes Auth & CSRF",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "csrf_token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Get CSRF Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.expect(data.csrf_token).to.be.a('string').and.not.empty;",
+              "pm.collectionVariables.set('csrf_token', data.csrf_token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/csrf-token",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "csrf-token"]
+        }
+      }
+    },
+    {
+      "name": "2. Register Fails Without CSRF Header",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Blocked with 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"hina@example.com\",\n  \"name\": \"Hina\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/auth/register",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "auth", "register"]
+        }
+      }
+    },
+    {
+      "name": "3. Register User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-CSRF-Token", "value": "{{csrf_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"hina@example.com\",\n  \"name\": \"Hina\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/auth/register",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "auth", "register"]
+        }
+      }
+    },
+    {
+      "name": "4. Get Current User (/me)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/auth/me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "auth", "me"]
+        }
+      }
+    },
+    {
+      "name": "5. Logout",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token}}" }],
+        "url": {
+          "raw": "{{base_url}}/api/v1/users/auth/logout",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "users", "auth", "logout"]
+        }
+      }
+    }
+  ]
+}

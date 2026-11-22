@@ -62,15 +62,15 @@ func main() {
 	}
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"}, // TODO: Update
+		AllowOrigins:     []string{cfg.FrontendUrl},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-CSRF-Token"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 
 	store, err := redis.NewStore(
-		10, // Parallel connection pool
+		10,
 		"tcp",
 		cfg.RedisArgs.Addr,
 		cfg.RedisArgs.Username,
@@ -98,7 +98,7 @@ func main() {
 		},
 	}))
 
-	router.New(&cfg, r)
+	router.New(&cfg, r, db)
 
 	log.Println("Starting the server...")
 

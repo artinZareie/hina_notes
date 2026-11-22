@@ -63,6 +63,7 @@ type Config struct {
 	DatabaseArgs DatabaseConnectionConfig
 	RedisArgs    RedisConfig
 	MailArgs     MailConfig
+	FrontendUrl  string
 }
 
 func GetEnv(key, fallback string) string {
@@ -82,6 +83,12 @@ func LoadConfig() (Config, error) {
 	if err != nil {
 		fmt.Errorf("Failed to parse launch mode.")
 		mode, _ = ParseLaunchMode("debug")
+	}
+
+	mail_port, err := strconv.Atoi(GetEnv("mail_port", "1025"))
+	if err != nil {
+		fmt.Errorf("Failed to parse mail port.")
+		mail_port = 1025
 	}
 
 	cfg := Config{
@@ -104,12 +111,13 @@ func LoadConfig() (Config, error) {
 		},
 		MailArgs: MailConfig{
 			Host:       GetEnv("mail_host", "localhost"),
-			Port:       1025, // TODO: Mailpit default; override for production
+			Port:       mail_port,
 			Username:   GetEnv("mail_username", ""),
 			Password:   GetEnv("mail_password", ""),
 			From:       GetEnv("mail_from", "noreply@hina.local"),
 			Encryption: GetEnv("mail_encryption", "none"),
 		},
+		FrontendUrl: GetEnv("frontend_url", "localhost:8080"),
 	}
 
 	if _, err := strconv.Atoi(port); err != nil {

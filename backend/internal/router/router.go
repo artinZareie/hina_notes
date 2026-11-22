@@ -2,12 +2,15 @@ package router
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/artinZareie/hina_notes/backend/internal/config"
 	"github.com/artinZareie/hina_notes/backend/internal/controllers"
 	"github.com/artinZareie/hina_notes/backend/internal/services"
+	csrf "github.com/utrack/gin-csrf"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 	"github.com/oaswrap/ginopenapi"
@@ -16,7 +19,7 @@ import (
 	scalargin "github.com/watchakorn-18k/scalar-go/middleware/gin"
 )
 
-func New(cfg *config.Config, r *gin.Engine) *gin.Engine {
+func New(cfg *config.Config, r *gin.Engine, db *gorm.DB) *gin.Engine {
 	router := ginopenapi.NewRouter(
 		r,
 		option.WithTitle("hina_notes API"),
@@ -29,8 +32,14 @@ func New(cfg *config.Config, r *gin.Engine) *gin.Engine {
 	{
 		v1 := api.Group("/v1")
 
+		v1.GET("/csrf-token", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"csrf_token": csrf.GetToken(c),
+			})
+		})
+
 		{
-			userSvc := services.NewUserService()
+			userSvc := services.NewUserService(db)
 			userCtrl := controllers.NewUserController(userSvc)
 
 			userCtrl.RegisterRoutes(v1)

@@ -6,8 +6,44 @@
     "version": "1.0.0"
   },
   "paths": {
-    "/api/v1/users": {
+    "/api/v1/csrf-token": {
       "get": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/auth/login": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/auth/logout": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/auth/me": {
+      "get": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/auth/register": {
+      "post": {
         "responses": {
           "204": {
             "description": "No Content"

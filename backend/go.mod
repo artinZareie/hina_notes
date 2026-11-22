@@ -17,6 +17,7 @@ require (
 require (
 	github.com/MarceloPetrucio/go-scalar-api-reference v0.0.0-20240521013641-ce5d2efe0e06 // indirect
 	github.com/boj/redistore v1.4.2 // indirect
+	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.5 // indirect
 	github.com/bytedance/sonic/loader v0.5.3 // indirect
@@ -33,6 +34,7 @@ require (
 	github.com/goccy/go-json v0.12.0 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/context v1.1.2 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/gorilla/sessions v1.4.0 // indirect
@@ -52,10 +54,12 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
+	github.com/mxcd/go-basicauth v1.5.1 // indirect
 	github.com/oaswrap/ginopenapi v0.1.0 // indirect
 	github.com/oaswrap/spec v0.1.4 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
+	github.com/pquerna/otp v1.5.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.65.0 // indirect
 	github.com/swaggest/jsonschema-go v0.3.78 // indirect

@@ -9,6 +9,7 @@ import (
 
 var allModels = []any{
 	&models.User{},
+	&models.UserBackupCode{},
 }
 
 func AutoMigrate(db *gorm.DB) error {
