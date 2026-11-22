@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -79,10 +80,11 @@ func (h *UserController) Register(c *gin.Context) {
 		return
 	}
 
+	verificationSent := true
 	if err := h.svc.SendVerificationEmail(c.Request.Context(), user.ID, h.verifyBaseURL, h.mailer); err != nil &&
 		!errors.Is(err, services.ErrEmailAlreadyVerified) {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send verification email"})
-		return
+		log.Printf("failed to send verification email to user %d: %v", user.ID, err)
+		verificationSent = false
 	}
 
 	if err := setAuthenticatedSession(c, user.ID, false); err != nil {
@@ -90,7 +92,10 @@ func (h *UserController) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"user": toUserResponse(user)})
+	c.JSON(http.StatusCreated, gin.H{
+		"user":                    toUserResponse(user),
+		"verification_email_sent": verificationSent,
+	})
 }
 
 func (h *UserController) RequestNewVerificationEmail(c *gin.Context) {
@@ -112,12 +117,10 @@ func (h *UserController) RequestNewVerificationEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "verification email sent"})
 }
 
-// GET /api/v1/users/verify_email?token=... — verifies email via query token (e.g. clicking a link).
 func (h *UserController) VerifyEmailGet(c *gin.Context) {
 	h.completeEmailVerification(c, c.Query("token"))
 }
 
-// POST /api/v1/users/auth/email/verify — verifies email via JSON body {"token":"..."}.
 func (h *UserController) VerifyEmailPost(c *gin.Context) {
 	var req dto.VerifyEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
