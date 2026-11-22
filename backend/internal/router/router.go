@@ -44,7 +44,7 @@ func New(cfg *config.Config, r *gin.Engine, db *gorm.DB) *gin.Engine {
 			if err != nil {
 				log.Fatalf("invalid totp encryption key: %v", err)
 			}
-			authMW := middlewares.NewAuthMiddleware(userSvc)
+			authMW := middlewares.NewAuthMiddleware(userSvc, userSvc)
 
 			userCtrl := controllers.NewUserController(userSvc)
 			userCtrl.RegisterRoutes(v1, authMW)

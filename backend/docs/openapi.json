@@ -70,6 +70,13 @@
       }
     },
     "/api/v1/users/auth/me": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
       "get": {
         "responses": {
           "204": {

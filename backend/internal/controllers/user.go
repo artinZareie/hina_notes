@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"time"
@@ -21,22 +20,11 @@ const (
 	pendingTOTPSecretKey = "pending_totp_secret"
 )
 
-type UserService interface {
-	SayHello(ctx context.Context) (string, error)
-	Register(ctx context.Context, req dto.RegisterRequest) (*models.User, error)
-	Login(ctx context.Context, req dto.LoginRequest) (*models.User, error)
-	GetByID(ctx context.Context, id uint) (*models.User, error)
-	SetupTOTP(ctx context.Context, userID uint) (secret string, otpauthURL string, err error)
-	EnableTOTP(ctx context.Context, userID uint, pendingSecret, code string) ([]string, error)
-	VerifyTOTPOrRecovery(ctx context.Context, userID uint, code string) error
-	DisableTOTP(ctx context.Context, userID uint) error
-}
-
 type UserController struct {
-	svc UserService
+	svc *services.UserService
 }
 
-func NewUserController(svc UserService) *UserController {
+func NewUserController(svc *services.UserService) *UserController {
 	return &UserController{svc: svc}
 }
 
@@ -48,6 +36,8 @@ func (h *UserController) RegisterRoutes(rg ginopenapi.Router, authMW *middleware
 	auth.POST("/login", h.Login)
 	auth.POST("/logout", h.Logout)
 	auth.GET("/me", authMW.RequireAuth(), h.Me)
+
+	auth.DELETE("/me", authMW.RequireAuth(), authMW.Require2FA(0), h.DeleteMe)
 
 	auth.POST("/2fa/setup", authMW.RequireAuth(), h.Setup2FA)
 	auth.POST("/2fa/enable", authMW.RequireAuth(), h.Enable2FA)
@@ -318,6 +308,33 @@ func toUserResponse(u *models.User) dto.UserResponse {
 		EmailVerifiedAt: u.EmailVerifiedAt,
 		TOTPEnabled:     u.TOTPEnabled,
 	}
+}
+
+func (h *UserController) DeleteMe(c *gin.Context) {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if err := h.svc.DeleteUser(c.Request.Context(), user.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
+		return
+	}
+
+	session := sessions.Default(c)
+	session.Clear()
+	session.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
+	if err := session.Save(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to clear session"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "account deleted"})
 }
 
 func toUint(v any) (uint, bool) {

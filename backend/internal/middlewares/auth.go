@@ -20,12 +20,17 @@ type UserLoader interface {
 	GetByID(ctx context.Context, id uint) (*models.User, error)
 }
 
-type AuthMiddleware struct {
-	users UserLoader
+type TwoFAVerifier interface {
+	VerifyTOTPOrRecovery(ctx context.Context, userID uint, code string) error
 }
 
-func NewAuthMiddleware(users UserLoader) *AuthMiddleware {
-	return &AuthMiddleware{users: users}
+type AuthMiddleware struct {
+	users    UserLoader
+	verifier TwoFAVerifier
+}
+
+func NewAuthMiddleware(users UserLoader, verifier TwoFAVerifier) *AuthMiddleware {
+	return &AuthMiddleware{users: users, verifier: verifier}
 }
 
 func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
@@ -68,8 +73,25 @@ func (m *AuthMiddleware) Require2FA(maxAge time.Duration) gin.HandlerFunc {
 
 		session := sessions.Default(c)
 		verifiedUnix, ok := toInt64(session.Get(TwoFAVerifiedAtKey))
-		if !ok || verifiedUnix <= 0 || time.Since(time.Unix(verifiedUnix, 0)) > maxAge {
+		if ok && verifiedUnix > 0 && time.Since(time.Unix(verifiedUnix, 0)) <= maxAge {
+			c.Next()
+			return
+		}
+
+		code := c.GetHeader("X-2FA-Code")
+		if code == "" || m.verifier == nil {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "2fa verification required"})
+			return
+		}
+
+		if err := m.verifier.VerifyTOTPOrRecovery(c.Request.Context(), user.ID, code); err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid two-factor or recovery code"})
+			return
+		}
+
+		session.Set(TwoFAVerifiedAtKey, time.Now().UTC().Unix())
+		if err := session.Save(); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "failed to update session"})
 			return
 		}
 

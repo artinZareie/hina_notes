@@ -139,7 +139,7 @@ func (s *UserService) EnableTOTP(ctx context.Context, userID uint, pendingSecret
 		return nil, ErrTOTPAlreadyEnabled
 	}
 
-	if !validateTOTPWithSkew(strings.TrimSpace(code), pendingSecret, 1) {
+	if !ValidateTOTPWithSkew(strings.TrimSpace(code), pendingSecret, 1) {
 		return nil, ErrInvalidTOTPCode
 	}
 
@@ -200,7 +200,7 @@ func (s *UserService) VerifyTOTPOrRecovery(ctx context.Context, userID uint, cod
 	}
 
 	trimmed := strings.TrimSpace(code)
-	if validateTOTPWithSkew(trimmed, secret, 1) {
+	if ValidateTOTPWithSkew(trimmed, secret, 1) {
 		return nil
 	}
 
@@ -251,5 +251,19 @@ func (s *UserService) DisableTOTP(ctx context.Context, userID uint) error {
 				"totp_secret_encrypted": "",
 				"totp_enabled_at":       nil,
 			}).Error
+	})
+}
+
+func (s *UserService) DeleteUser(ctx context.Context, userID uint) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("user_id = ?", userID).Delete(&models.UserBackupCode{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Delete(&models.User{}, userID).Error; err != nil {
+			return err
+		}
+
+		return nil
 	})
 }

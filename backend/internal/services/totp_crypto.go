@@ -133,7 +133,7 @@ func NormalizeRecoveryCode(code string) string {
 	return s
 }
 
-func validateTOTPWithSkew(code string, secret string, skew uint) bool {
+func ValidateTOTPWithSkew(code string, secret string, skew uint) bool {
 	valid, err := totp.ValidateCustom(
 		strings.TrimSpace(code),
 		secret,
