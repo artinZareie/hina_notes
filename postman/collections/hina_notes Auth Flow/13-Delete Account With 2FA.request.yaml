@@ -26,7 +26,7 @@ scripts:
       pm.collectionVariables.set('csrf_token', '');
 
       pm.sendRequest({
-        url: pm.collectionVariables.get('base_url') + '/api/v1/users/auth/me',
+        url: pm.collectionVariables.get('base_url') + '/api/v1/users/me',
         method: 'GET'
       }, (err, res) => {
         pm.test('Session is invalidated after account deletion (401)', () => {

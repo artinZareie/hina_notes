@@ -1,7 +1,7 @@
 $kind: collection
 name: hina_notes Auth Flow
 description: |-
-  End-to-end register / login / logout test scenario for the hina_notes API.
+  End-to-end register / login / logout test scenario for the hina_notes API.  
   Run as a collection to execute the full flow in order.
 variables:
   base_url: http://localhost:3000

@@ -2,7 +2,7 @@ $kind: http-request
 name: '4 - Get Current User'
 order: 4000
 method: GET
-url: '{{base_url}}/api/v1/users/auth/me'
+url: '{{base_url}}/api/v1/users/me'
 scripts:
   - type: afterResponse
     language: text/javascript

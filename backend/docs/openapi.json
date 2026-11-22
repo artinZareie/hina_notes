@@ -69,7 +69,16 @@
         }
       }
     },
-    "/api/v1/users/auth/me": {
+    "/api/v1/users/auth/register": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
       "delete": {
         "responses": {
           "204": {
@@ -78,15 +87,6 @@
         }
       },
       "get": {
-        "responses": {
-          "204": {
-            "description": "No Content"
-          }
-        }
-      }
-    },
-    "/api/v1/users/auth/register": {
-      "post": {
         "responses": {
           "204": {
             "description": "No Content"

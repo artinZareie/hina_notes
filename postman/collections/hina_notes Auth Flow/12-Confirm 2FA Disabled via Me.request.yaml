@@ -2,7 +2,7 @@ $kind: http-request
 name: '12 - Confirm 2FA Disabled via Me'
 order: 12000
 method: GET
-url: '{{base_url}}/api/v1/users/auth/me'
+url: '{{base_url}}/api/v1/users/me'
 scripts:
   - type: afterResponse
     language: text/javascript

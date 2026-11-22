@@ -35,9 +35,9 @@ func (h *UserController) RegisterRoutes(rg ginopenapi.Router, authMW *middleware
 	auth.POST("/register", h.Register)
 	auth.POST("/login", h.Login)
 	auth.POST("/logout", h.Logout)
-	auth.GET("/me", authMW.RequireAuth(), h.Me)
 
-	auth.DELETE("/me", authMW.RequireAuth(), authMW.Require2FA(0), h.DeleteMe)
+	users.GET("/me", authMW.RequireAuth(), h.Me)
+	users.DELETE("/me", authMW.RequireAuth(), authMW.Require2FA(0), h.DeleteMe)
 
 	auth.POST("/2fa/setup", authMW.RequireAuth(), h.Setup2FA)
 	auth.POST("/2fa/enable", authMW.RequireAuth(), h.Enable2FA)

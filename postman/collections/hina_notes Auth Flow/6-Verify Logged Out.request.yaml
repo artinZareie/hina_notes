@@ -2,7 +2,7 @@ $kind: http-request
 name: '6 - Verify Logged Out'
 order: 6000
 method: GET
-url: '{{base_url}}/api/v1/users/auth/me'
+url: '{{base_url}}/api/v1/users/me'
 scripts:
   - type: afterResponse
     language: text/javascript
