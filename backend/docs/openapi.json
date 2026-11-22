@@ -51,6 +51,15 @@
         }
       }
     },
+    "/api/v1/users/auth/email/verify": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/users/auth/login": {
       "post": {
         "responses": {
@@ -87,6 +96,22 @@
         }
       },
       "get": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/verify_email": {
+      "get": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "post": {
         "responses": {
           "204": {
             "description": "No Content"

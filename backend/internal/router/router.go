@@ -8,8 +8,10 @@ import (
 
 	"github.com/artinZareie/hina_notes/backend/internal/config"
 	"github.com/artinZareie/hina_notes/backend/internal/controllers"
+	"github.com/artinZareie/hina_notes/backend/internal/mail"
 	"github.com/artinZareie/hina_notes/backend/internal/middlewares"
 	"github.com/artinZareie/hina_notes/backend/internal/services"
+
 	csrf "github.com/utrack/gin-csrf"
 	"gorm.io/gorm"
 
@@ -45,8 +47,9 @@ func New(cfg *config.Config, r *gin.Engine, db *gorm.DB) *gin.Engine {
 				log.Fatalf("invalid totp encryption key: %v", err)
 			}
 			authMW := middlewares.NewAuthMiddleware(userSvc, userSvc)
+			mailer, err := mail.NewMailer(cfg.MailArgs)
 
-			userCtrl := controllers.NewUserController(userSvc)
+			userCtrl := controllers.NewUserController(userSvc, mailer, cfg)
 			userCtrl.RegisterRoutes(v1, authMW)
 		}
 	}

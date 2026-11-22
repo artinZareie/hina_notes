@@ -10,6 +10,7 @@ import (
 var allModels = []any{
 	&models.User{},
 	&models.UserBackupCode{},
+	&models.EmailVerificationToken{},
 }
 
 func AutoMigrate(db *gorm.DB) error {

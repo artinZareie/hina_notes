@@ -2,13 +2,17 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/artinZareie/hina_notes/backend/internal/config"
 	"github.com/artinZareie/hina_notes/backend/internal/dto"
+	"github.com/artinZareie/hina_notes/backend/internal/mail"
 	"github.com/artinZareie/hina_notes/backend/internal/middlewares"
 	"github.com/artinZareie/hina_notes/backend/internal/models"
 	"github.com/artinZareie/hina_notes/backend/internal/services"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/oaswrap/ginopenapi"
@@ -21,11 +25,20 @@ const (
 )
 
 type UserController struct {
-	svc *services.UserService
+	cfg           *config.Config
+	svc           *services.UserService
+	mailer        *mail.Mailer
+	verifyBaseURL string
 }
 
-func NewUserController(svc *services.UserService) *UserController {
-	return &UserController{svc: svc}
+func NewUserController(svc *services.UserService, mailer *mail.Mailer, cfg *config.Config) *UserController {
+	verifyBaseURL := fmt.Sprintf("http://localhost:%s/api/v1/users/verify_email", cfg.ServerArgs.Port)
+
+	return &UserController{
+		svc:           svc,
+		mailer:        mailer,
+		verifyBaseURL: verifyBaseURL,
+	}
 }
 
 func (h *UserController) RegisterRoutes(rg ginopenapi.Router, authMW *middlewares.AuthMiddleware) {
@@ -38,6 +51,10 @@ func (h *UserController) RegisterRoutes(rg ginopenapi.Router, authMW *middleware
 
 	users.GET("/me", authMW.RequireAuth(), h.Me)
 	users.DELETE("/me", authMW.RequireAuth(), authMW.Require2FA(0), h.DeleteMe)
+
+	users.GET("/verify_email", h.VerifyEmailGet)
+	users.POST("/verify_email", authMW.RequireAuth(), h.RequestNewVerificationEmail)
+	auth.POST("/email/verify", h.VerifyEmailPost)
 
 	auth.POST("/2fa/setup", authMW.RequireAuth(), h.Setup2FA)
 	auth.POST("/2fa/enable", authMW.RequireAuth(), h.Enable2FA)
@@ -62,12 +79,70 @@ func (h *UserController) Register(c *gin.Context) {
 		return
 	}
 
+	if err := h.svc.SendVerificationEmail(c.Request.Context(), user.ID, h.verifyBaseURL, h.mailer); err != nil &&
+		!errors.Is(err, services.ErrEmailAlreadyVerified) {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send verification email"})
+		return
+	}
+
 	if err := setAuthenticatedSession(c, user.ID, false); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"user": toUserResponse(user)})
+}
+
+func (h *UserController) RequestNewVerificationEmail(c *gin.Context) {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if err := h.svc.SendVerificationEmail(c.Request.Context(), user.ID, h.verifyBaseURL, h.mailer); err != nil {
+		if errors.Is(err, services.ErrEmailAlreadyVerified) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send verification email"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "verification email sent"})
+}
+
+// GET /api/v1/users/verify_email?token=... — verifies email via query token (e.g. clicking a link).
+func (h *UserController) VerifyEmailGet(c *gin.Context) {
+	h.completeEmailVerification(c, c.Query("token"))
+}
+
+// POST /api/v1/users/auth/email/verify — verifies email via JSON body {"token":"..."}.
+func (h *UserController) VerifyEmailPost(c *gin.Context) {
+	var req dto.VerifyEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.completeEmailVerification(c, req.Token)
+}
+
+func (h *UserController) completeEmailVerification(c *gin.Context, rawToken string) {
+	user, err := h.svc.VerifyEmail(c.Request.Context(), rawToken)
+	if err != nil {
+		if errors.Is(err, services.ErrInvalidVerificationToken) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify email"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "email verified",
+		"user":    toUserResponse(user),
+	})
 }
 
 func (h *UserController) Login(c *gin.Context) {
