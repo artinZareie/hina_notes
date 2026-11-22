@@ -61,6 +61,9 @@ func (h *UserController) RegisterRoutes(rg ginopenapi.Router, authMW *middleware
 	auth.POST("/2fa/enable", authMW.RequireAuth(), h.Enable2FA)
 	auth.POST("/2fa/verify", h.Verify2FA)
 	auth.POST("/2fa/disable", authMW.RequireAuth(), authMW.Require2FA(10*time.Minute), h.Disable2FA)
+
+	users.PATCH("/me", authMW.RequireAuth(), h.UpdateProfile)
+	users.PUT("/me/password", authMW.RequireAuth(), authMW.Require2FA(10), h.ChangePassword)
 }
 
 func (h *UserController) Register(c *gin.Context) {
@@ -413,6 +416,56 @@ func (h *UserController) DeleteMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "account deleted"})
+}
+
+func (h *UserController) UpdateProfile(c *gin.Context) {
+	currentUser, ok := middlewares.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req dto.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updated, err := h.svc.UpdateName(c.Request.Context(), currentUser.ID, req.Name)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"user": toUserResponse(updated)})
+}
+
+func (h *UserController) ChangePassword(c *gin.Context) {
+	currentUser, ok := middlewares.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req dto.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.ChangePassword(c.Request.Context(), currentUser.ID, req.CurrentPassword, req.NewPassword); err != nil {
+		switch {
+		case errors.Is(err, services.ErrInvalidCredentials):
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "current password is incorrect"})
+		case errors.Is(err, services.ErrSamePassword):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update password"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "password updated"})
 }
 
 func toUint(v any) (uint, bool) {

@@ -27,6 +27,8 @@ var (
 	ErrNoPendingTOTP      = errors.New("no pending two-factor setup found")
 )
 
+var ErrSamePassword = errors.New("new password must be different from current password")
+
 type UserService struct {
 	db     *gorm.DB
 	aesKey []byte
@@ -266,4 +268,44 @@ func (s *UserService) DeleteUser(ctx context.Context, userID uint) error {
 
 		return nil
 	})
+}
+
+func (s *UserService) UpdateName(ctx context.Context, userID uint, name string) (*models.User, error) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return nil, errors.New("name cannot be empty")
+	}
+
+	if err := s.db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("name", trimmed).Error; err != nil {
+		return nil, err
+	}
+
+	return s.GetByID(ctx, userID)
+}
+
+func (s *UserService) ChangePassword(ctx context.Context, userID uint, currentPassword, newPassword string) error {
+	user, err := s.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if !user.CheckPassword(currentPassword) {
+		return ErrInvalidCredentials
+	}
+
+	if currentPassword == newPassword {
+		return ErrSamePassword
+	}
+
+	if err := user.SetPassword(newPassword); err != nil {
+		return err
+	}
+
+	return s.db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", user.ID).
+		Update("password", user.Password).Error
 }
