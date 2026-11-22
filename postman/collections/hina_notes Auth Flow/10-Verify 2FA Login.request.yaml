@@ -1,0 +1,38 @@
+$kind: http-request
+name: '10 - Verify 2FA Login'
+order: 10000
+method: POST
+url: '{{base_url}}/api/v1/users/auth/2fa/verify'
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: X-CSRF-Token
+    value: '{{csrf_token}}'
+body:
+  type: json
+  content: |-
+    {
+      "code": "{{totp_code}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status is 200 OK', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Authenticated user returned with totp_enabled true', () => {
+        const data = pm.response.json();
+        pm.expect(data.user).to.be.an('object');
+        pm.expect(data.user.totp_enabled).to.eql(true);
+      });
+
+      pm.sendRequest({
+        url: pm.collectionVariables.get('base_url') + '/api/v1/csrf-token',
+        method: 'GET'
+      }, (err, res) => {
+        if (!err && res.code === 200) {
+          pm.collectionVariables.set('csrf_token', res.json().csrf_token);
+        }
+      });

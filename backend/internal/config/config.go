@@ -58,12 +58,13 @@ type MailConfig struct {
 }
 
 type Config struct {
-	Mode         LaunchMode
-	ServerArgs   ServerConfig
-	DatabaseArgs DatabaseConnectionConfig
-	RedisArgs    RedisConfig
-	MailArgs     MailConfig
-	FrontendUrl  string
+	Mode              LaunchMode
+	ServerArgs        ServerConfig
+	DatabaseArgs      DatabaseConnectionConfig
+	RedisArgs         RedisConfig
+	MailArgs          MailConfig
+	FrontendUrl       string
+	TOTPEncryptionKey string
 }
 
 func GetEnv(key, fallback string) string {
@@ -117,7 +118,8 @@ func LoadConfig() (Config, error) {
 			From:       GetEnv("mail_from", "noreply@hina.local"),
 			Encryption: GetEnv("mail_encryption", "none"),
 		},
-		FrontendUrl: GetEnv("frontend_url", "localhost:8080"),
+		FrontendUrl:       GetEnv("frontend_url", "localhost:8080"),
+		TOTPEncryptionKey: GetEnv("totp_encryption_key", ""),
 	}
 
 	if _, err := strconv.Atoi(port); err != nil {

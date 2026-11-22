@@ -1,0 +1,38 @@
+$kind: http-request
+name: '9 - Login Requires 2FA'
+order: 9000
+method: POST
+url: '{{base_url}}/api/v1/users/auth/login'
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: X-CSRF-Token
+    value: '{{csrf_token}}'
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{test_email}}",
+      "password": "{{test_password}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status is 200 OK', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Login prompts for 2FA instead of full session', () => {
+        const data = pm.response.json();
+        pm.expect(data.requires_2fa).to.eql(true);
+      });
+
+      pm.sendRequest({
+        url: pm.collectionVariables.get('base_url') + '/api/v1/csrf-token',
+        method: 'GET'
+      }, (err, res) => {
+        if (!err && res.code === 200) {
+          pm.collectionVariables.set('csrf_token', res.json().csrf_token);
+        }
+      });

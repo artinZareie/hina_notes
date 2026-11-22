@@ -1,0 +1,31 @@
+$kind: http-request
+name: '7 - Setup 2FA'
+order: 7000
+method: POST
+url: '{{base_url}}/api/v1/users/auth/2fa/setup'
+headers:
+  - key: X-CSRF-Token
+    value: '{{csrf_token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status is 200 OK', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Setup returns secret and otpauth_url', () => {
+        const data = pm.response.json();
+        pm.expect(data.secret).to.be.a('string').and.not.empty;
+        pm.expect(data.otpauth_url).to.be.a('string').and.not.empty;
+        pm.collectionVariables.set('totp_secret', data.secret);
+      });
+
+      pm.sendRequest({
+        url: pm.collectionVariables.get('base_url') + '/api/v1/csrf-token',
+        method: 'GET'
+      }, (err, res) => {
+        if (!err && res.code === 200) {
+          pm.collectionVariables.set('csrf_token', res.json().csrf_token);
+        }
+      });

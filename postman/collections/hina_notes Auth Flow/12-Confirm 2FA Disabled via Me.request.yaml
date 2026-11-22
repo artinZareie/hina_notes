@@ -1,0 +1,17 @@
+$kind: http-request
+name: '12 - Confirm 2FA Disabled via Me'
+order: 12000
+method: GET
+url: '{{base_url}}/api/v1/users/auth/me'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status is 200 OK', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('totp_enabled is now false', () => {
+        const data = pm.response.json();
+        pm.expect(data.user.totp_enabled).to.eql(false);
+      });

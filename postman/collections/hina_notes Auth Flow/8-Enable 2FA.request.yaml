@@ -1,0 +1,71 @@
+$kind: http-request
+name: '8 - Enable 2FA'
+order: 8000
+method: POST
+url: '{{base_url}}/api/v1/users/auth/2fa/enable'
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: X-CSRF-Token
+    value: '{{csrf_token}}'
+body:
+  type: json
+  content: |-
+    {
+      "code": "{{totp_code}}"
+    }
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      function generateTOTP(base32Secret) {
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        const clean = (base32Secret || '').toUpperCase().replace(/[^A-Z2-7]/g, '');
+        let bits = '';
+        for (let i = 0; i < clean.length; i++) {
+          const val = alphabet.indexOf(clean[i]);
+          if (val >= 0) bits += val.toString(2).padStart(5, '0');
+        }
+        const bytes = [];
+        for (let i = 0; i + 8 <= bits.length; i += 8) {
+          bytes.push(parseInt(bits.slice(i, i + 8), 2));
+        }
+
+        const step = Math.floor(Date.now() / 1000 / 30);
+        const counterHex = step.toString(16).padStart(16, '0');
+        const keyHex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        const hmac = CryptoJS.HmacSHA1(
+          CryptoJS.enc.Hex.parse(counterHex),
+          CryptoJS.enc.Hex.parse(keyHex)
+        ).toString(CryptoJS.enc.Hex);
+
+        const offset = parseInt(hmac.slice(-1), 16) * 2;
+        const binCode = (parseInt(hmac.slice(offset, offset + 8), 16) & 0x7fffffff) % 1000000;
+        return binCode.toString().padStart(6, '0');
+      }
+
+      const secret = pm.collectionVariables.get('totp_secret');
+      pm.collectionVariables.set('totp_code', generateTOTP(secret));
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status is 200 OK', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Returns exactly 4 recovery codes', () => {
+        const data = pm.response.json();
+        pm.expect(data.recovery_codes).to.be.an('array').with.lengthOf(4);
+        pm.collectionVariables.set('recovery_codes', JSON.stringify(data.recovery_codes));
+        pm.collectionVariables.set('first_recovery_code', data.recovery_codes[0]);
+      });
+
+      pm.sendRequest({
+        url: pm.collectionVariables.get('base_url') + '/api/v1/csrf-token',
+        method: 'GET'
+      }, (err, res) => {
+        if (!err && res.code === 200) {
+          pm.collectionVariables.set('csrf_token', res.json().csrf_token);
+        }
+      });

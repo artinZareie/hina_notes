@@ -1,16 +1,15 @@
 $kind: collection
-name: 'hina_notes Auth Flow'
+name: hina_notes Auth Flow
 description: |-
   End-to-end register / login / logout test scenario for the hina_notes API.
   Run as a collection to execute the full flow in order.
 variables:
-  - key: base_url
-    value: 'http://localhost:3000'
-  - key: csrf_token
-    value: ''
-  - key: test_email
-    value: 'testuser@example.com'
-  - key: test_password
-    value: 'password123'
-  - key: test_name
-    value: 'Test User'
+  base_url: http://localhost:3000
+  csrf_token: ""
+  test_email: testuser@example.com
+  test_password: password123
+  test_name: Test User
+  totp_secret: ""
+  totp_code: ""
+  recovery_codes: ""
+  first_recovery_code: ""

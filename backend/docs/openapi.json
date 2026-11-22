@@ -15,6 +15,42 @@
         }
       }
     },
+    "/api/v1/users/auth/2fa/disable": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/auth/2fa/enable": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/auth/2fa/setup": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/users/auth/2fa/verify": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/v1/users/auth/login": {
       "post": {
         "responses": {

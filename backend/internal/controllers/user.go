@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/artinZareie/hina_notes/backend/internal/dto"
+	"github.com/artinZareie/hina_notes/backend/internal/middlewares"
 	"github.com/artinZareie/hina_notes/backend/internal/models"
 	"github.com/artinZareie/hina_notes/backend/internal/services"
 	"github.com/gin-contrib/sessions"
@@ -13,13 +15,21 @@ import (
 	"github.com/oaswrap/ginopenapi"
 )
 
-const sessionUserIDKey = "user_id"
+const (
+	sessionUserIDKey     = "user_id"
+	pending2FAUserIDKey  = "pending_2fa_user_id"
+	pendingTOTPSecretKey = "pending_totp_secret"
+)
 
 type UserService interface {
 	SayHello(ctx context.Context) (string, error)
 	Register(ctx context.Context, req dto.RegisterRequest) (*models.User, error)
 	Login(ctx context.Context, req dto.LoginRequest) (*models.User, error)
 	GetByID(ctx context.Context, id uint) (*models.User, error)
+	SetupTOTP(ctx context.Context, userID uint) (secret string, otpauthURL string, err error)
+	EnableTOTP(ctx context.Context, userID uint, pendingSecret, code string) ([]string, error)
+	VerifyTOTPOrRecovery(ctx context.Context, userID uint, code string) error
+	DisableTOTP(ctx context.Context, userID uint) error
 }
 
 type UserController struct {
@@ -30,28 +40,19 @@ func NewUserController(svc UserService) *UserController {
 	return &UserController{svc: svc}
 }
 
-func (h *UserController) RegisterRoutes(rg ginopenapi.Router) {
+func (h *UserController) RegisterRoutes(rg ginopenapi.Router, authMW *middlewares.AuthMiddleware) {
 	users := rg.Group("/users")
 
 	auth := users.Group("/auth")
 	auth.POST("/register", h.Register)
 	auth.POST("/login", h.Login)
 	auth.POST("/logout", h.Logout)
-	auth.GET("/me", h.RequireAuth(), h.Me)
-}
+	auth.GET("/me", authMW.RequireAuth(), h.Me)
 
-func (h *UserController) RequireAuth() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		session := sessions.Default(c)
-		rawID := session.Get(sessionUserIDKey)
-		userID, ok := toUint(rawID)
-		if !ok || userID == 0 {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			return
-		}
-		c.Set(sessionUserIDKey, userID)
-		c.Next()
-	}
+	auth.POST("/2fa/setup", authMW.RequireAuth(), h.Setup2FA)
+	auth.POST("/2fa/enable", authMW.RequireAuth(), h.Enable2FA)
+	auth.POST("/2fa/verify", h.Verify2FA)
+	auth.POST("/2fa/disable", authMW.RequireAuth(), authMW.Require2FA(10*time.Minute), h.Disable2FA)
 }
 
 func (h *UserController) Register(c *gin.Context) {
@@ -71,7 +72,7 @@ func (h *UserController) Register(c *gin.Context) {
 		return
 	}
 
-	if err := setSessionUserID(c, user.ID); err != nil {
+	if err := setAuthenticatedSession(c, user.ID, false); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
 		return
 	}
@@ -96,7 +97,19 @@ func (h *UserController) Login(c *gin.Context) {
 		return
 	}
 
-	if err := setSessionUserID(c, user.ID); err != nil {
+	if user.TOTPEnabled {
+		session := sessions.Default(c)
+		session.Clear()
+		session.Set(pending2FAUserIDKey, user.ID)
+		if err := session.Save(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to initialize 2fa challenge"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"requires_2fa": true})
+		return
+	}
+
+	if err := setAuthenticatedSession(c, user.ID, false); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
 		return
 	}
@@ -122,26 +135,178 @@ func (h *UserController) Logout(c *gin.Context) {
 }
 
 func (h *UserController) Me(c *gin.Context) {
-	rawID, exists := c.Get(sessionUserIDKey)
-	userID, ok := toUint(rawID)
-	if !exists || !ok {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	user, err := h.svc.GetByID(c.Request.Context(), userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load user"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"user": toUserResponse(user)})
 }
 
-func setSessionUserID(c *gin.Context, userID uint) error {
+func (h *UserController) Setup2FA(c *gin.Context) {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	secret, otpauthURL, err := h.svc.SetupTOTP(c.Request.Context(), user.ID)
+	if err != nil {
+		if errors.Is(err, services.ErrTOTPAlreadyEnabled) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to setup 2fa"})
+		return
+	}
+
+	session := sessions.Default(c)
+	session.Set(pendingTOTPSecretKey, secret)
+	if err := session.Save(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save 2fa setup state"})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.TOTPSetupResponse{
+		Secret:     secret,
+		OTPAuthURL: otpauthURL,
+	})
+}
+
+func (h *UserController) Enable2FA(c *gin.Context) {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req dto.TOTPEnableRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	session := sessions.Default(c)
+	pendingSecret, _ := session.Get(pendingTOTPSecretKey).(string)
+
+	codes, err := h.svc.EnableTOTP(c.Request.Context(), user.ID, pendingSecret, req.Code)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrNoPendingTOTP):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case errors.Is(err, services.ErrTOTPAlreadyEnabled):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		case errors.Is(err, services.ErrInvalidTOTPCode):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to enable 2fa"})
+		}
+		return
+	}
+
+	session.Delete(pendingTOTPSecretKey)
+	session.Set(middlewares.TwoFAVerifiedAtKey, time.Now().UTC().Unix())
+	if err := session.Save(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update session"})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.TOTPEnableResponse{
+		Message:       "two-factor authentication enabled",
+		RecoveryCodes: codes,
+	})
+}
+
+func (h *UserController) Verify2FA(c *gin.Context) {
+	var req dto.TOTPVerifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	session := sessions.Default(c)
+	var targetUserID uint
+	var completingLogin bool
+
+	if pendingID, ok := toUint(session.Get(pending2FAUserIDKey)); ok && pendingID > 0 {
+		targetUserID = pendingID
+		completingLogin = true
+	} else if activeID, ok := toUint(session.Get(middlewares.SessionUserIDKey)); ok && activeID > 0 {
+		targetUserID = activeID
+	} else {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no active login or session requiring 2fa"})
+		return
+	}
+
+	if err := h.svc.VerifyTOTPOrRecovery(c.Request.Context(), targetUserID, req.Code); err != nil {
+		switch {
+		case errors.Is(err, services.ErrTOTPNotEnabled):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case errors.Is(err, services.ErrInvalidTOTPCode):
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify 2fa code"})
+		}
+		return
+	}
+
+	if completingLogin {
+		if err := setAuthenticatedSession(c, targetUserID, true); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to complete login session"})
+			return
+		}
+		user, err := h.svc.GetByID(c.Request.Context(), targetUserID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load user"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"user": toUserResponse(user)})
+		return
+	}
+
+	session.Set(middlewares.TwoFAVerifiedAtKey, time.Now().UTC().Unix())
+	if err := session.Save(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update session"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"verified": true})
+}
+
+func (h *UserController) Disable2FA(c *gin.Context) {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if err := h.svc.DisableTOTP(c.Request.Context(), user.ID); err != nil {
+		if errors.Is(err, services.ErrTOTPNotEnabled) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to disable 2fa"})
+		return
+	}
+
+	session := sessions.Default(c)
+	session.Delete(middlewares.TwoFAVerifiedAtKey)
+	if err := session.Save(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update session"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "two-factor authentication disabled"})
+}
+
+func setAuthenticatedSession(c *gin.Context, userID uint, mark2FAVerified bool) error {
 	session := sessions.Default(c)
 	session.Clear()
-	session.Set(sessionUserIDKey, userID)
+	session.Set(middlewares.SessionUserIDKey, userID)
+	if mark2FAVerified {
+		session.Set(middlewares.TwoFAVerifiedAtKey, time.Now().UTC().Unix())
+	}
 	return session.Save()
 }
 
