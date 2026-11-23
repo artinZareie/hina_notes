@@ -9,7 +9,7 @@ import (
 
 type User struct {
 	gorm.Model
-	Email               string     `gorm:"uniqueIndex;not null"`
+	Email               string     `gorm:"uniqueIndex:idx_users_email_active,where:deleted_at IS NULL;not null"`
 	Name                string     `gorm:"not null"`
 	Password            string     `gorm:"column:password"`
 	EmailVerifiedAt     *time.Time `gorm:"column:email_verified_at"`

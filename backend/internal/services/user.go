@@ -258,7 +258,11 @@ func (s *UserService) DisableTOTP(ctx context.Context, userID uint) error {
 
 func (s *UserService) DeleteUser(ctx context.Context, userID uint) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("user_id = ?", userID).Delete(&models.UserBackupCode{}).Error; err != nil {
+		if err := tx.Unscoped().Where("user_id = ?", userID).Delete(&models.UserBackupCode{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Unscoped().Where("user_id = ?", userID).Delete(&models.EmailVerificationToken{}).Error; err != nil {
 			return err
 		}
 
