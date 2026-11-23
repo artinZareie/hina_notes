@@ -1,7 +1,7 @@
 package router
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,7 +22,7 @@ import (
 	scalargin "github.com/watchakorn-18k/scalar-go/middleware/gin"
 )
 
-func New(cfg *config.Config, r *gin.Engine, db *gorm.DB) *gin.Engine {
+func New(cfg *config.Config, r *gin.Engine, db *gorm.DB) (*gin.Engine, error) {
 	router := ginopenapi.NewRouter(
 		r,
 		option.WithTitle("hina_notes API"),
@@ -44,33 +44,37 @@ func New(cfg *config.Config, r *gin.Engine, db *gorm.DB) *gin.Engine {
 		{
 			userSvc, err := services.NewUserService(db, cfg.TOTPEncryptionKey)
 			if err != nil {
-				log.Fatalf("invalid totp encryption key: %v", err)
+				return nil, fmt.Errorf("invalid totp key: %w", err)
 			}
+
 			authMW := middlewares.NewAuthMiddleware(userSvc, userSvc)
 			mailer, err := mail.NewMailer(cfg.MailArgs)
+			if err != nil {
+				return nil, fmt.Errorf("init mailer: %w", err)
+			}
 
 			userCtrl := controllers.NewUserController(userSvc, mailer, cfg)
 			userCtrl.RegisterRoutes(v1, authMW)
 		}
 	}
 
+	const specFile = "openapi.json"
 	if err := os.MkdirAll("docs", 0o755); err != nil {
-		log.Printf("failed to create docs dir: %v", err)
-	} else if err := router.WriteSchemaTo(filepath.Join("docs", "openapi.json")); err != nil {
-		log.Printf("failed to write openapi.json: %v", err)
+		return nil, fmt.Errorf("create docs dir: %w", err)
+	}
+	if err := router.WriteSchemaTo(filepath.Join("docs", specFile)); err != nil {
+		return nil, fmt.Errorf("write %s: %w", specFile, err)
 	}
 
 	RegisterDocsRoutes(r)
 
-	return r
+	return r, nil
 }
 
 func RegisterDocsRoutes(r *gin.Engine) {
 	r.GET("/scalar", scalargin.Handler(&scalar.Options{
 		SpecURL:      "/docs/openapi.yaml",
 		ValidateSpec: true,
-		CustomOptions: scalar.CustomOptions{
-			PageTitle: "API Reference",
-		},
+		PageTitle:    "API Reference",
 	}))
 }

@@ -17,104 +17,775 @@
     },
     "/api/v1/users/auth/2fa/disable": {
       "post": {
-        "responses": {
-          "204": {
-            "description": "No Content"
+        "summary": "Disable TOTP 2FA",
+        "description": "Disable TOTP 2FA",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
-        }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoMessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       }
     },
     "/api/v1/users/auth/2fa/enable": {
       "post": {
-        "responses": {
-          "204": {
-            "description": "No Content"
+        "summary": "Enable TOTP 2FA",
+        "description": "Enable TOTP 2FA",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DtoTOTPEnableRequest"
+              }
+            }
           }
-        }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoTOTPEnableResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       }
     },
     "/api/v1/users/auth/2fa/setup": {
       "post": {
-        "responses": {
-          "204": {
-            "description": "No Content"
+        "summary": "Initialize TOTP 2FA setup",
+        "description": "Initialize TOTP 2FA setup",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
-        }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoTOTPSetupResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       }
     },
     "/api/v1/users/auth/2fa/verify": {
       "post": {
+        "summary": "Verify TOTP or recovery code",
+        "description": "Verify TOTP or recovery code",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DtoTOTPVerifyRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoUserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/v1/users/auth/email/verify": {
       "post": {
+        "summary": "Verify email via JSON payload",
+        "description": "Verify email via JSON payload",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DtoVerifyEmailRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoMessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/v1/users/auth/login": {
       "post": {
+        "summary": "Log in with email and password",
+        "description": "Log in with email and password",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DtoLoginRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoUserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/v1/users/auth/logout": {
       "post": {
-        "responses": {
-          "204": {
-            "description": "No Content"
+        "summary": "Log out current session",
+        "description": "Log out current session",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
-        }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoMessageResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       }
     },
     "/api/v1/users/auth/register": {
       "post": {
+        "summary": "Register a new user",
+        "description": "Register a new user",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DtoRegisterRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "204": {
-            "description": "No Content"
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoUserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/v1/users/me": {
       "delete": {
-        "responses": {
-          "204": {
-            "description": "No Content"
+        "summary": "Delete account",
+        "description": "Delete account",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
-        }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoMessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       },
       "get": {
+        "summary": "Get current user",
+        "description": "Get current user",
         "responses": {
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoUserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Update user profile",
+        "description": "Update user profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DtoUpdateProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoUserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/password": {
+      "put": {
+        "summary": "Change password",
+        "description": "Change password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DtoChangePasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoMessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       }
     },
     "/api/v1/users/verify_email": {
       "get": {
+        "summary": "Verify email via query token",
+        "description": "Verify email via query token",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoMessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
           }
         }
       },
       "post": {
+        "summary": "Resend verification email",
+        "description": "Resend verification email",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoMessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DtoErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DtoChangePasswordRequest": {
+        "type": "object",
+        "properties": {
+          "current_password": {
+            "type": "string"
+          },
+          "new_password": {
+            "type": "string"
+          }
+        }
+      },
+      "DtoErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "DtoLoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "DtoMessageResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "DtoRegisterRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "DtoTOTPEnableRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "DtoTOTPEnableResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "recovery_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "DtoTOTPSetupResponse": {
+        "type": "object",
+        "properties": {
+          "otpauth_url": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        }
+      },
+      "DtoTOTPVerifyRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "DtoUpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "DtoUserResponse": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "email_verified_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "id": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "totp_enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DtoVerifyEmailRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
           }
         }
       }

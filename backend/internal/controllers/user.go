@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/artinZareie/hina_notes/backend/internal/config"
@@ -17,6 +18,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/oaswrap/ginopenapi"
+	"github.com/oaswrap/spec/option"
 )
 
 const (
@@ -33,7 +35,12 @@ type UserController struct {
 }
 
 func NewUserController(svc *services.UserService, mailer *mail.Mailer, cfg *config.Config) *UserController {
-	verifyBaseURL := fmt.Sprintf("http://localhost:%s/api/v1/users/verify_email", cfg.ServerArgs.Port) // TODO: Fix the URL.
+	base := strings.TrimRight(cfg.ServerArgs.BaseUrl, "/")
+	if cfg.ServerArgs.Port != "" && !strings.Contains(strings.TrimPrefix(strings.TrimPrefix(base, "http://"), "https://"), ":") {
+		base = fmt.Sprintf("%s:%s", base, cfg.ServerArgs.Port)
+	}
+
+	verifyBaseURL := fmt.Sprintf("%s/api/v1/users/verify_email", base)
 
 	return &UserController{
 		svc:           svc,
@@ -44,26 +51,121 @@ func NewUserController(svc *services.UserService, mailer *mail.Mailer, cfg *conf
 
 func (h *UserController) RegisterRoutes(rg ginopenapi.Router, authMW *middlewares.AuthMiddleware) {
 	users := rg.Group("/users")
-
 	auth := users.Group("/auth")
-	auth.POST("/register", h.Register)
-	auth.POST("/login", h.Login)
-	auth.POST("/logout", h.Logout)
 
-	users.GET("/me", authMW.RequireAuth(), h.Me)
-	users.DELETE("/me", authMW.RequireAuth(), authMW.Require2FA(0), h.DeleteMe)
+	auth.POST("/register", h.Register).With(
+		option.Summary("Register a new user"),
+		option.Request(new(dto.RegisterRequest)),
+		option.Response(http.StatusCreated, new(dto.UserResponse)),
+		option.Response(http.StatusBadRequest, new(dto.ErrorResponse)),
+		option.Response(http.StatusConflict, new(dto.ErrorResponse)),
+	)
 
-	users.GET("/verify_email", h.VerifyEmailGet)
-	users.POST("/verify_email", authMW.RequireAuth(), h.RequestNewVerificationEmail)
-	auth.POST("/email/verify", h.VerifyEmailPost)
+	auth.POST("/login", h.Login).With(
+		option.Summary("Log in with email and password"),
+		option.Request(new(dto.LoginRequest)),
+		option.Response(http.StatusOK, new(dto.UserResponse)),
+		option.Response(http.StatusBadRequest, new(dto.ErrorResponse)),
+		option.Response(http.StatusUnauthorized, new(dto.ErrorResponse)),
+	)
 
-	auth.POST("/2fa/setup", authMW.RequireAuth(), h.Setup2FA)
-	auth.POST("/2fa/enable", authMW.RequireAuth(), h.Enable2FA)
-	auth.POST("/2fa/verify", h.Verify2FA)
-	auth.POST("/2fa/disable", authMW.RequireAuth(), authMW.Require2FA(10*time.Minute), h.Disable2FA)
+	auth.POST("/logout", h.Logout).With(
+		option.Summary("Log out current session"),
+		option.Security("cookieAuth"),
+		option.Request(new(dto.ProtectedActionRequest)),
+		option.Response(http.StatusOK, new(dto.MessageResponse)),
+	)
 
-	users.PATCH("/me", authMW.RequireAuth(), h.UpdateProfile)
-	users.PUT("/me/password", authMW.RequireAuth(), authMW.Require2FA(10), h.ChangePassword)
+	users.GET("/me", authMW.RequireAuth(), h.Me).With(
+		option.Summary("Get current user"),
+		option.Security("cookieAuth"),
+		option.Response(http.StatusOK, new(dto.UserResponse)),
+		option.Response(http.StatusUnauthorized, new(dto.ErrorResponse)),
+	)
+
+	users.PATCH("/me", authMW.RequireAuth(), h.UpdateProfile).With(
+		option.Summary("Update user profile"),
+		option.Security("cookieAuth"),
+		option.Request(new(dto.UpdateProfileRequest)), // embed dto.CSRFHeader
+		option.Response(http.StatusOK, new(dto.UserResponse)),
+		option.Response(http.StatusBadRequest, new(dto.ErrorResponse)),
+		option.Response(http.StatusUnauthorized, new(dto.ErrorResponse)),
+	)
+
+	users.PUT("/me/password", authMW.RequireAuth(), authMW.Require2FA(10*time.Minute), h.ChangePassword).With(
+		option.Summary("Change password"),
+		option.Security("cookieAuth"),
+		option.Request(new(dto.ChangePasswordRequest)),
+		option.Response(http.StatusOK, new(dto.MessageResponse)),
+		option.Response(http.StatusBadRequest, new(dto.ErrorResponse)),
+		option.Response(http.StatusUnauthorized, new(dto.ErrorResponse)),
+	)
+
+	users.DELETE("/me", authMW.RequireAuth(), authMW.Require2FA(0), h.DeleteMe).With(
+		option.Summary("Delete account"),
+		option.Security("cookieAuth"),
+		option.Request(new(dto.ProtectedActionRequest)),
+		option.Response(http.StatusOK, new(dto.MessageResponse)),
+		option.Response(http.StatusUnauthorized, new(dto.ErrorResponse)),
+	)
+
+	users.GET("/verify_email", h.VerifyEmailGet).With(
+		option.Summary("Verify email via query token"),
+		option.Request(new(dto.VerifyEmailQuery)),
+		option.Response(http.StatusOK, new(dto.MessageResponse)),
+		option.Response(http.StatusBadRequest, new(dto.ErrorResponse)),
+	)
+
+	users.POST("/verify_email", authMW.RequireAuth(), h.RequestNewVerificationEmail).With(
+		option.Summary("Resend verification email"),
+		option.Security("cookieAuth"),
+		option.Request(new(dto.ProtectedActionRequest)),
+		option.Response(http.StatusOK, new(dto.MessageResponse)),
+		option.Response(http.StatusConflict, new(dto.ErrorResponse)),
+		option.Response(http.StatusUnauthorized, new(dto.ErrorResponse)),
+	)
+
+	auth.POST("/email/verify", h.VerifyEmailPost).With(
+		option.Summary("Verify email via JSON payload"),
+		option.Request(new(dto.VerifyEmailRequest)),
+		option.Response(http.StatusOK, new(dto.MessageResponse)),
+		option.Response(http.StatusBadRequest, new(dto.ErrorResponse)),
+	)
+
+	auth.POST("/2fa/setup", authMW.RequireAuth(), h.Setup2FA).With(
+		option.Summary("Initialize TOTP 2FA setup"),
+		option.Security("cookieAuth"),
+		option.Request(new(dto.ProtectedActionRequest)),
+		option.Response(http.StatusOK, new(dto.TOTPSetupResponse)),
+		option.Response(http.StatusConflict, new(dto.ErrorResponse)),
+		option.Response(http.StatusUnauthorized, new(dto.ErrorResponse)),
+	)
+
+	auth.POST("/2fa/enable", authMW.RequireAuth(), h.Enable2FA).With(
+		option.Summary("Enable TOTP 2FA"),
+		option.Security("cookieAuth"),
+		option.Request(new(dto.TOTPEnableRequest)), // embed dto.CSRFHeader
+		option.Response(http.StatusOK, new(dto.TOTPEnableResponse)),
+		option.Response(http.StatusBadRequest, new(dto.ErrorResponse)),
+		option.Response(http.StatusUnauthorized, new(dto.ErrorResponse)),
+	)
+
+	auth.POST("/2fa/verify", h.Verify2FA).With(
+		option.Summary("Verify TOTP or recovery code"),
+		option.Request(new(dto.TOTPVerifyRequest)), // embed dto.CSRFHeader
+		option.Response(http.StatusOK, new(dto.UserResponse)),
+		option.Response(http.StatusBadRequest, new(dto.ErrorResponse)),
+		option.Response(http.StatusUnauthorized, new(dto.ErrorResponse)),
+	)
+
+	auth.POST("/2fa/disable", authMW.RequireAuth(), authMW.Require2FA(10*time.Minute), h.Disable2FA).With(
+		option.Summary("Disable TOTP 2FA"),
+		option.Security("cookieAuth"),
+		option.Request(new(dto.ProtectedActionRequest)),
+		option.Response(http.StatusOK, new(dto.MessageResponse)),
+		option.Response(http.StatusBadRequest, new(dto.ErrorResponse)),
+		option.Response(http.StatusUnauthorized, new(dto.ErrorResponse)),
+	)
 }
 
 func (h *UserController) Register(c *gin.Context) {

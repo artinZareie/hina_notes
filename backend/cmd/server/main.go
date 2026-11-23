@@ -98,7 +98,9 @@ func main() {
 		},
 	}))
 
-	router.New(&cfg, r, db)
+	if _, err := router.New(&cfg, r, db); err != nil {
+		log.Fatalf("router setup failed: %v", err)
+	}
 
 	log.Println("Starting the server...")
 
